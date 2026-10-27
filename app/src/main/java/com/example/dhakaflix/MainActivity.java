@@ -11,6 +11,11 @@ import android.webkit.WebViewClient;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+
 public class MainActivity extends AppCompatActivity {
 
     private WebView webView;
@@ -29,8 +34,35 @@ public class MainActivity extends AppCompatActivity {
         settings.setAllowContentAccess(true);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
 
-        // অ্যাপের জাভাস্ক্রিপ্ট থেকে সরাসরি VLC কল করার ব্রিজ
+        // জাভা নেটিভ ব্রিজ: জাভাস্ক্রিপ্টের বদলে জাভা সরাসরি নেটওয়ার্ক কল করবে
         webView.addJavascriptInterface(new Object() {
+            @JavascriptInterface
+            public void fetchHtml(String targetUrl) {
+                new Thread(() -> {
+                    StringBuilder result = new StringBuilder();
+                    try {
+                        URL url = new URL(targetUrl);
+                        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                        conn.setRequestMethod("GET");
+                        conn.setRequestProperty("User-Agent", "Mozilla/5.0");
+                        conn.setConnectTimeout(8000);
+                        conn.setReadTimeout(8000);
+
+                        BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                        String line;
+                        while ((line = reader.readLine()) != null) {
+                            result.append(line).append("\n");
+                        }
+                        reader.close();
+
+                        String cleanHtml = result.toString().replace("`", "\\`").replace("$", "\\$");
+                        runOnUiThread(() -> webView.evaluateJavascript("window.onHtmlLoaded(`" + cleanHtml + "`, `" + targetUrl + "`)", null));
+                    } catch (Exception e) {
+                        runOnUiThread(() -> webView.evaluateJavascript("window.onHtmlError(`" + e.getMessage() + "`)", null));
+                    }
+                }).start();
+            }
+
             @JavascriptInterface
             public void playVideoInVlc(String videoUrl) {
                 runOnUiThread(() -> {
@@ -79,12 +111,15 @@ public class MainActivity extends AppCompatActivity {
                 "{name:'English (1080p)', url:'http://172.16.50.14/DHAKA-FLIX-14/English%20Movies%20%281080p%29/', icon:'🍿'}," +
                 "{name:'IMDb Top-250', url:'http://172.16.50.14/DHAKA-FLIX-14/IMDb%20Top-250%20Movies/', icon:'⭐'}," +
                 "{name:'Hindi Movies', url:'http://172.16.50.14/DHAKA-FLIX-14/Hindi%20Movies/', icon:'🎭'}," +
+                "{name:'South Hindi Dubbed', url:'http://172.16.50.14/DHAKA-FLIX-14/SOUTH%20INDIAN%20MOVIES/Hindi%20Dubbed/', icon:'🔥'}," +
                 "{name:'Animation', url:'http://172.16.50.14/DHAKA-FLIX-14/Animation%20Movies/', icon:'🎨'}," +
                 "{name:'Anime & Cartoon', url:'http://172.16.50.10/DHAKA-FLIX-10/Anime%20%26%20Cartoon%20TV%20Series/', icon:'⚡'}" +
                 "];" +
                 "const EXTS = ['.mkv','.mp4','.avi','.webm','.m4v','.ts'];" +
                 "const grid = document.getElementById('grid');" +
+                "let currentUrl = '';" +
                 "function loadHome(){" +
+                "currentUrl = '';" +
                 "document.getElementById('bc').innerHTML='<span>Home</span>';" +
                 "grid.innerHTML='';" +
                 "CATS.forEach(c=>{" +
@@ -94,23 +129,27 @@ public class MainActivity extends AppCompatActivity {
                 "grid.appendChild(d);" +
                 "});" +
                 "}" +
-                "async function loadDir(u, title){" +
+                "function loadDir(u, title){" +
+                "currentUrl = u;" +
                 "grid.innerHTML='Loading...';" +
                 "document.getElementById('bc').innerHTML='<span onclick=\"loadHome()\" style=\"color:#38bdf8;cursor:pointer;\">Home</span> / <b>'+title+'</b>';" +
-                "try {" +
-                "let res = await fetch(u);" +
-                "let txt = await res.text();" +
+                "AndroidBridge.fetchHtml(u);" +
+                "}" +
+                "window.onHtmlLoaded = function(txt, base){" +
                 "let doc = new DOMParser().parseFromString(txt, 'text/html');" +
                 "let links = Array.from(doc.querySelectorAll('a'));" +
                 "grid.innerHTML='';" +
+                "let count = 0;" +
                 "links.forEach(a=>{" +
                 "let h = a.getAttribute('href');" +
-                "if(!h || h.startsWith('?') || h==='/' || h==='../' || h.includes('parent directory')) return;" +
-                "let full = new URL(h, u).href;" +
+                "if(!h || h.startsWith('?') || h==='/' || h==='../' || h.includes('parent directory') || h.includes('h5ai')) return;" +
+                "let full = '';" +
+                "try { full = new URL(h, base).href; } catch(e){ return; }" +
                 "let isF = h.endsWith('/') || full.endsWith('/');" +
                 "let name = decodeURIComponent(full.replace(/\\/$/, '').split('/').pop());" +
                 "let isV = EXTS.some(x=>name.toLowerCase().endsWith(x));" +
                 "if(isF || isV){" +
+                "count++;" +
                 "let d=document.createElement('div'); d.className='card'; d.tabIndex=0;" +
                 "d.innerHTML='<span class=\"icon\">'+(isF?'📁':'▶️')+'</span><span class=\"name\">'+name+'</span>';" +
                 "if(isF) d.onclick=()=>loadDir(full, name);" +
@@ -118,8 +157,9 @@ public class MainActivity extends AppCompatActivity {
                 "grid.appendChild(d);" +
                 "}" +
                 "});" +
-                "} catch(e){ grid.innerHTML='Load failed!'; }" +
-                "}" +
+                "if(count === 0) grid.innerHTML='No media found in this folder.';" +
+                "};" +
+                "window.onHtmlError = function(err){ grid.innerHTML='Network Error: '+err; };" +
                 "loadHome();" +
                 "</script></body></html>";
 
