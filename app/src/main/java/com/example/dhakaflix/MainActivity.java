@@ -36,7 +36,6 @@ public class MainActivity extends AppCompatActivity {
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
 
         webView.addJavascriptInterface(new Object() {
-            // Assets থেকে ৯.৫ এমবির movies.json মেমোরিতে লোড
             @JavascriptInterface
             public void loadLocalIndex() {
                 new Thread(() -> {
@@ -57,7 +56,6 @@ public class MainActivity extends AppCompatActivity {
                 }).start();
             }
 
-            // ব্রাউজিংয়ের সময় এইচটিএমএল রিড করা
             @JavascriptInterface
             public void fetchHtml(String targetUrl) {
                 new Thread(() -> {
@@ -85,23 +83,16 @@ public class MainActivity extends AppCompatActivity {
                 }).start();
             }
 
-            // সরাসরি VLC প্লেয়ার ট্রিগার
             @JavascriptInterface
-            public void playVideoInVlc(String videoUrl) {
+            public void playVideo(String videoUrl, String title) {
                 runOnUiThread(() -> {
                     try {
                         Intent intent = new Intent(Intent.ACTION_VIEW);
                         intent.setDataAndTypeAndNormalize(Uri.parse(videoUrl), "video/*");
-                        intent.setPackage("org.videolan.vlc");
-                        startActivity(intent);
-                    } catch (Exception e) {
-                        try {
-                            Intent generic = new Intent(Intent.ACTION_VIEW);
-                            generic.setDataAndTypeAndNormalize(Uri.parse(videoUrl), "video/*");
-                            startActivity(Intent.createChooser(generic, "Play video using"));
-                        } catch (Exception ex) {
-                            Toast.makeText(MainActivity.this, "VLC Player install kora nai!", Toast.LENGTH_SHORT).show();
-                        }
+                        intent.putExtra(Intent.EXTRA_TITLE, title);
+                        startActivity(Intent.createChooser(intent, "প্লেয়ার অথবা টিভিতে কাস্ট নির্বাচন করুন:"));
+                    } catch (Exception ex) {
+                        Toast.makeText(MainActivity.this, "ভিডিও প্লেয়ার পাওয়া যায়নি!", Toast.LENGTH_SHORT).show();
                     }
                 });
             }
@@ -113,34 +104,37 @@ public class MainActivity extends AppCompatActivity {
 
     private void loadAppHtml() {
         String html = "<!DOCTYPE html>" +
-                "<html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>" +
+                "<html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1,user-scalable=no'>" +
                 "<style>" +
-                "* { box-sizing: border-box; margin:0; padding:0; }" +
-                "body { background: #0b0f19; color: #f1f5f9; font-family: sans-serif; padding: 14px; }" +
-                "header { display:flex; flex-direction:column; gap:10px; margin-bottom:14px; }" +
-                ".top-row { display:flex; justify-content:space-between; align-items:center; }" +
-                "h1 { color: #38bdf8; font-size: 20px; cursor:pointer; }" +
-                ".search-box { display:flex; gap:6px; }" +
-                ".search-input { flex:1; padding:10px 12px; background:#1e293b; border:1px solid #334155; color:#fff; border-radius:6px; font-size:14px; outline:none; }" +
-                ".search-btn { padding:0 16px; background:#0284c7; color:#fff; border:none; border-radius:6px; font-weight:bold; cursor:pointer; }" +
-                ".grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }" +
-                ".card { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 12px; display:flex; align-items:center; gap:10px; cursor:pointer; }" +
-                ":focus { outline: 3px solid #38bdf8; background: #334155; }" +
-                ".icon { font-size: 20px; flex-shrink:0; }" +
-                ".name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }" +
-                ".badge { font-size: 11px; padding: 3px 8px; border-radius: 4px; background: #064e3b; color: #34d399; }" +
+                "* { box-sizing: border-box; margin:0; padding:0; -webkit-tap-highlight-color: transparent; }" +
+                "body { background: #f8fafc; color: #0f172a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 16px; }" +
+                "header { margin-bottom: 16px; }" +
+                ".top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }" +
+                ".logo { font-size: 24px; font-weight: 800; color: #1e1b4b; letter-spacing: -0.5px; cursor: pointer; }" +
+                ".logo span { color: #6366f1; }" +
+                ".badge { font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 20px; background: #e0e7ff; color: #4338ca; }" +
+                ".search-wrapper { position: relative; width: 100%; }" +
+                ".search-input { width: 100%; padding: 12px 16px; background: #ffffff; border: 1.5px solid #e2e8f0; color: #0f172a; border-radius: 12px; font-size: 15px; outline: none; box-shadow: 0 2px 6px rgba(0,0,0,0.03); transition: all 0.2s ease; }" +
+                ".search-input:focus { border-color: #6366f1; box-shadow: 0 4px 12px rgba(99,102,241,0.12); }" +
+                ".breadcrumb { font-size: 13px; color: #64748b; margin-bottom: 14px; font-weight: 500; display:flex; gap:6px; align-items:center; }" +
+                ".breadcrumb span { color: #6366f1; cursor: pointer; }" +
+                ".grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); gap: 12px; }" +
+                ".card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px; display: flex; align-items: center; gap: 12px; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.04); transition: transform 0.15s ease, box-shadow 0.15s ease; }" +
+                ".card:active { transform: scale(0.98); background: #f1f5f9; }" +
+                ".icon-wrap { width: 36px; height: 36px; border-radius: 8px; background: #f1f5f9; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }" +
+                ".name { font-size: 13px; font-weight: 600; color: #334155; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }" +
+                ".state-msg { text-align: center; padding: 40px 20px; color: #64748b; font-size: 14px; }" +
                 "</style></head><body>" +
                 "<header>" +
-                "<div class='top-row'>" +
-                "<h1 onclick='loadHome()'>DhakaFlix Quick Hub</h1>" +
-                "<span id='idxBadge' class='badge'>Loading 45K Index...</span>" +
+                "<div class='top-bar'>" +
+                "<div class='logo' onclick='loadHome()'>Ratul <span>Flix</span></div>" +
+                "<div id='idxBadge' class='badge'>Loading Index...</div>" +
                 "</div>" +
-                "<div class='search-box'>" +
-                "<input type='text' id='sInput' class='search-input' placeholder='মুভি বা সিরিজের নাম লিখুন...' />" +
-                "<button onclick='doSearch()' class='search-btn'>খুঁজুন</button>" +
+                "<div class='search-wrapper'>" +
+                "<input type='text' id='sInput' class='search-input' placeholder='Search' autocomplete='off' />" +
                 "</div>" +
                 "</header>" +
-                "<div id='bc' style='margin-bottom:12px; font-size:13px; color:#94a3b8;'></div>" +
+                "<div id='bc' class='breadcrumb'></div>" +
                 "<div id='grid' class='grid'></div>" +
                 "<script>" +
                 "let movieDatabase = [];" +
@@ -165,52 +159,53 @@ public class MainActivity extends AppCompatActivity {
                 "{ name: 'Awards & TV Shows', url: 'http://172.16.50.10/DHAKA-FLIX-10/Awards%20%26%20TV%20Shows/', icon: '🏆' }" +
                 "];" +
                 "const EXTS = ['.mkv','.mp4','.avi','.webm','.m4v','.ts'];" +
+                "const BLOCKED = ['browsehappy', 'brave.com', 'wordpress.org', 'mozilla', 'apple.com', 'google.com', 'h5ai'];" +
                 "const grid = document.getElementById('grid');" +
                 "const sInput = document.getElementById('sInput');" +
                 "const idxBadge = document.getElementById('idxBadge');" +
                 "function loadHome(){" +
+                "sInput.value = '';" +
                 "document.getElementById('bc').innerHTML='<span>Home</span>';" +
                 "grid.innerHTML='';" +
                 "CATS.forEach(c=>{" +
-                "let d=document.createElement('div'); d.className='card'; d.tabIndex=0;" +
-                "d.innerHTML='<span class=\"icon\">'+c.icon+'</span><span class=\"name\">'+c.name+'</span>';" +
+                "let d=document.createElement('div'); d.className='card';" +
+                "d.innerHTML='<div class=\"icon-wrap\">'+c.icon+'</div><div class=\"name\">'+c.name+'</div>';" +
                 "d.onclick=()=>loadDir(c.url, c.name);" +
                 "grid.appendChild(d);" +
                 "});" +
                 "}" +
                 "function loadDir(u, title){" +
-                "grid.innerHTML='Loading...';" +
-                "document.getElementById('bc').innerHTML='<span onclick=\"loadHome()\" style=\"color:#38bdf8;cursor:pointer;\">Home</span> / <b>'+title+'</b>';" +
+                "grid.innerHTML='<div class=\"state-msg\">ফোল্ডার লোড হচ্ছে...</div>';" +
+                "document.getElementById('bc').innerHTML='<span onclick=\"loadHome()\">Home</span> / <b>'+title+'</b>';" +
                 "AndroidBridge.fetchHtml(u);" +
                 "}" +
-                "function doSearch(){" +
-                "let q = sInput.value.trim().toLowerCase();" +
-                "if(!q) return;" +
-                "if(!movieDatabase || movieDatabase.length === 0){ alert('ইনডেক্স ডেটা লোড হয়নি!'); return; }" +
-                "document.getElementById('bc').innerHTML='Search Results: <b>'+q+'</b>';" +
+                "sInput.addEventListener('input', function(){" +
+                "let q = this.value.trim().toLowerCase();" +
+                "if(!q){ loadHome(); return; }" +
+                "if(!movieDatabase || movieDatabase.length === 0) return;" +
+                "document.getElementById('bc').innerHTML='Search Results for: <b>'+q+'</b>';" +
                 "grid.innerHTML='';" +
                 "let hits = movieDatabase.filter(m => ((m.name||'').toLowerCase().includes(q))).slice(0, 100);" +
-                "if(hits.length === 0){ grid.innerHTML='কিছু পাওয়া যায়নি!'; return; }" +
+                "if(hits.length === 0){ grid.innerHTML='<div class=\"state-msg\">কিছু পাওয়া যায়নি!</div>'; return; }" +
                 "hits.forEach(m=>{" +
                 "let title = m.name || 'Unknown';" +
                 "let playUrl = m.url || '';" +
                 "let isF = m.is_folder || playUrl.endsWith('/') || !EXTS.some(x=>playUrl.toLowerCase().endsWith(x));" +
-                "let d=document.createElement('div'); d.className='card'; d.tabIndex=0;" +
-                "d.innerHTML='<span class=\"icon\">'+(isF?'📁':'▶️')+'</span><span class=\"name\">'+title+'</span>';" +
+                "let d=document.createElement('div'); d.className='card';" +
+                "d.innerHTML='<div class=\"icon-wrap\">'+(isF?'📁':'▶️')+'</div><div class=\"name\">'+title+'</div>';" +
                 "if(isF) d.onclick=()=>loadDir(playUrl, title);" +
-                "else d.onclick=()=>AndroidBridge.playVideoInVlc(playUrl);" +
+                "else d.onclick=()=>AndroidBridge.playVideo(playUrl, title);" +
                 "grid.appendChild(d);" +
                 "});" +
-                "}" +
-                "sInput.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') doSearch(); });" +
+                "});" +
                 "window.onIndexLoaded = function(data){" +
                 "movieDatabase = data;" +
-                "idxBadge.innerText = 'Indexed ('+movieDatabase.length+')';" +
-                "idxBadge.style.background = '#064e3b';" +
+                "idxBadge.innerText = 'Online ('+movieDatabase.length.toLocaleString()+')';" +
+                "idxBadge.style.background = '#dcfce7'; idxBadge.style.color = '#15803d';" +
                 "};" +
                 "window.onIndexError = function(){" +
-                "idxBadge.innerText = 'No Index File';" +
-                "idxBadge.style.background = '#7f1d1d';" +
+                "idxBadge.innerText = 'Index Missing';" +
+                "idxBadge.style.background = '#fee2e2'; idxBadge.style.color = '#b91c1c';" +
                 "};" +
                 "window.onHtmlLoaded = function(txt, base){" +
                 "let doc = new DOMParser().parseFromString(txt, 'text/html');" +
@@ -219,24 +214,27 @@ public class MainActivity extends AppCompatActivity {
                 "let count = 0;" +
                 "links.forEach(a=>{" +
                 "let h = a.getAttribute('href');" +
-                "if(!h || h.startsWith('?') || h==='/' || h==='../' || h.includes('parent directory') || h.includes('h5ai')) return;" +
+                "if(!h || h.startsWith('?') || h==='/' || h==='../' || h.toLowerCase().includes('parent directory')) return;" +
                 "let full = '';" +
                 "try { full = new URL(h, base).href; } catch(e){ return; }" +
+                "let fullLow = full.toLowerCase();" +
+                "if(BLOCKED.some(b => fullLow.includes(b))) return;" +
                 "let isF = h.endsWith('/') || full.endsWith('/');" +
                 "let name = decodeURIComponent(full.replace(/\\/$/, '').split('/').pop());" +
+                "if(BLOCKED.some(b => name.toLowerCase().includes(b))) return;" +
                 "let isV = EXTS.some(x=>name.toLowerCase().endsWith(x));" +
                 "if(isF || isV){" +
                 "count++;" +
-                "let d=document.createElement('div'); d.className='card'; d.tabIndex=0;" +
-                "d.innerHTML='<span class=\"icon\">'+(isF?'📁':'▶️')+'</span><span class=\"name\">'+name+'</span>';" +
+                "let d=document.createElement('div'); d.className='card';" +
+                "d.innerHTML='<div class=\"icon-wrap\">'+(isF?'📁':'▶️')+'</div><div class=\"name\">'+name+'</div>';" +
                 "if(isF) d.onclick=()=>loadDir(full, name);" +
-                "else d.onclick=()=>AndroidBridge.playVideoInVlc(full);" +
+                "else d.onclick=()=>AndroidBridge.playVideo(full, name);" +
                 "grid.appendChild(d);" +
                 "}" +
                 "});" +
-                "if(count === 0) grid.innerHTML='No media found in this folder.';" +
+                "if(count === 0) grid.innerHTML='<div class=\"state-msg\">এই ফোল্ডারে কোনো মিডিয়া নেই।</div>';" +
                 "};" +
-                "window.onHtmlError = function(err){ grid.innerHTML='Network Error: '+err; };" +
+                "window.onHtmlError = function(err){ grid.innerHTML='<div class=\"state-msg\" style=\"color:#ef4444;\">নেটওয়ার্ক এরর: '+err+'</div>'; };" +
                 "AndroidBridge.loadLocalIndex();" +
                 "loadHome();" +
                 "</script></body></html>";
